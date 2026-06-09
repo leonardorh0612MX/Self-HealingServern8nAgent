@@ -1,0 +1,111 @@
+{
+  "name": "SSH - Command call",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "433510a9-8687-478e-a6c7-75d83be58d6e",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        1040,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ $json.query }}"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        128
+      ],
+      "id": "36354e43-4b15-49d3-9fa8-a191d5cfd091",
+      "name": "Execute a command",
+      "credentials": {
+        "sshPassword": {
+          "id": "bjrSTV9HuxIWCypQ",
+          "name": "SSH leobunker_lap1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a8920da4-afbf-4b60-83d1-75cf310709c3",
+              "name": "query",
+              "value": "={{ $json.query }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1248,
+        128
+      ],
+      "id": "42a5d477-8043-43e6-ac74-bba747ef6ba2",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "content": "## HELPER\n\nHELPER FOR BASH COMMANDS"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1104,
+        -96
+      ],
+      "typeVersion": 1,
+      "id": "0406f3e9-25b9-4b69-a70f-782631ba5748",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Execute a command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "5377bb71-f154-44bb-b692-8caa5085a737",
+  "meta": {
+    "instanceId": "7f8724a44da10a6a9d1f3d1d192c3d39c93626fa36492cfc18ecdf145f6149ab"
+  },
+  "nodeGroups": [],
+  "id": "IWDCPXQG66AQT2BI",
+  "tags": []
+}
