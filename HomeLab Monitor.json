@@ -1,0 +1,336 @@
+{
+  "name": "HomeLab Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=My server is reporting the following problems:\n\nProblems: {{ $json.problems }}\n\nFull metrics:\n{{ $json.summary }}\n\nAnalyze the issues and execute the necessary fix commands via SSH on my server at 192.168.100.177. After fixing, report what you did and the current status.",
+        "options": {
+          "systemMessage": "=You are an autonomous server operations agent for Leo's homelab running at leobunker.dev.\n\nYou are triggered when server metrics are outside acceptable thresholds.\n\nWORKFLOW:\n1. Analyze the problems\n2. Execute the appropriate fix via SSH tool\n3. Verify the fix worked by checking the output\n4. If applies run DOCKER TOOL to check the docker containers running\n4. If failed, retry up to 3 times with same or alternative command\n5. Send one final Telegram message with a short summary\n\nSERVER CONTEXT:\n- OS: Ubuntu 24 LTS, no GUI, terminal only\n- User: leonardorh\n- Docker compose files location: ~/docker/ghost and ~/docker/n8n\n- Ghost runs on port 3001, n8n on port 5678\n- Cloudflare tunnel handles public traffic to leobunker.dev\n\nFIX RULES:\n- Ghost container down or database connection error: cd ~/docker/ghost && docker compose down && docker compose up -d\n- n8n container down: cd ~/docker/n8n && docker compose down && docker compose up -d\n- Web returning non-200: same as Ghost fix above\n- Disk full: docker system prune -f\n- CPU or RAM high: identify the container using most resources with \"docker stats --no-stream\" then restart it\n- Battery low: informational only, no action needed\n\nRESTRICTIONS:\n- Never run rm -rf or any destructive command\n- Never modify docker-compose.yml files\n- Never restart the entire system\n- Only restart individual containers or run docker compose commands\n\nTELEGRAM FINAL MESSAGE FORMAT:\nProblem detected: [problem]\nAction taken: [command executed]\nResult: [success or failed]\nServer status: [current status after fix]"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        704,
+        0
+      ],
+      "id": "280ebeec-ef22-438a-90de-8a905371d41c",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-sonnet-4-6",
+          "cachedResultName": "Claude Sonnet 4.6"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        256
+      ],
+      "id": "83936278-11ce-4d18-b785-2c14286f75c5",
+      "name": "Anthropic Chat Model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "aTW66x5pFcjHtkur",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "6637347628",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "d5ad2f41-0549-4975-895b-539050cbb364",
+      "name": "Send a text message",
+      "webhookId": "39083bf7-a372-4859-961a-231223fb6d56",
+      "credentials": {
+        "telegramApi": {
+          "id": "DWNOqpsJERJf5BzL",
+          "name": "Telegram Leobunker Monitor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -240,
+        32
+      ],
+      "id": "3b00e940-8fea-4704-9b8d-5475d92c80a9",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "command": "echo \"CPU: $(top -bn1 | grep 'Cpu(s)' | awk '{print $2}')%\" && echo \"RAM: $(free -m | awk 'NR==2{printf \"%.0f%%\", $3*100/$2}')\" && echo \"Disco: $(df -h / | awk 'NR==2{print $5}')\" && echo \"Bateria: $(cat /sys/class/power_supply/BAT0/capacity)%\" && echo \"Temp: $(cat /sys/class/thermal/thermal_zone0/temp | awk '{printf \"%.1f\", $1/1000}')C\" && echo \"Docker: $(docker ps --format '{{.Names}}' | tr '\\n' ' ')\" && echo \"Web: $(curl -s -o /dev/null -w '%{http_code}' https://leobunker.dev)\"",
+        "cwd": "/home/leonardorh"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        32
+      ],
+      "id": "fc6f24f3-44d8-4462-b2a9-3c4112b09746",
+      "name": "Execute a command1",
+      "credentials": {
+        "sshPassword": {
+          "id": "bjrSTV9HuxIWCypQ",
+          "name": "SSH leobunker_lap1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9a39b83e-6e2c-46b2-bef0-55b4a9af5ca9",
+              "leftValue": "={{ $json.hasProblems }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        288,
+        32
+      ],
+      "id": "40754007-cc77-4d5d-a0bc-cf19bceec0e7",
+      "name": "If"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        496,
+        144
+      ],
+      "id": "9924eb0a-e4be-4363-9e57-3330e60489a3",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.first().json.stdout;\n\nconst lines = output.split('\\n');\nconst metrics = {};\n\nlines.forEach(line => {\n  const [key, value] = line.split(': ');\n  metrics[key.trim()] = value ? value.trim() : '';\n});\n\nconst cpu = parseFloat(metrics['CPU']);\nconst ram = parseFloat(metrics['RAM']);\nconst disco = parseFloat(metrics['Disco']);\nconst bateria = parseFloat(metrics['Bateria']);\nconst web = metrics['Web'];\nconst docker = metrics['Docker'];\n\nconst problems = [];\n\nif (cpu > 80) problems.push(`CPU alta: ${cpu}%`);\nif (ram > 85) problems.push(`RAM alta: ${ram}%`);\nif (disco > 90) problems.push(`Disco lleno: ${disco}%`);\nif (bateria < 20) problems.push(`Bateria baja: ${bateria}%`);\nif (web !== '200') problems.push(`Web caída: ${web}`);\n\nreturn [{\n  json: {\n    metrics,\n    problems,\n    hasProblems: problems.length > 0,\n    summary: output\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        32
+      ],
+      "id": "18393fbf-b181-43a6-88fc-a01954e590dd",
+      "name": "Parsear output"
+    },
+    {
+      "parameters": {
+        "description": "Executes a bash command on the homelab server via SSH. \nUse this to fix server issues, restart Docker containers, \nclean disk space, or run any safe system command. \nInput must be a single bash command string.",
+        "workflowId": {
+          "__rl": true,
+          "value": "IWDCPXQG66AQT2BI",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/IWDCPXQG66AQT2BI",
+          "cachedResultName": "SSH - Command call"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        976,
+        240
+      ],
+      "id": "1b858208-e02b-4630-8760-13733f3a44c8",
+      "name": "Call 'SSH - Command call'"
+    },
+    {
+      "parameters": {
+        "description": "use it to check the docker containers running.",
+        "workflowId": {
+          "__rl": true,
+          "value": "DjS82G7zto3Nxwin",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/DjS82G7zto3Nxwin",
+          "cachedResultName": "docker tool"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        816,
+        256
+      ],
+      "id": "e64b95a6-435b-404e-bf54-174cc5710afa",
+      "name": "Call 'docker tool'"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Execute a command1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a command1": {
+      "main": [
+        [
+          {
+            "node": "Parsear output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear output": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'SSH - Command call'": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'docker tool'": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "e0713967-af99-4f25-be9d-76f617201dbf",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7f8724a44da10a6a9d1f3d1d192c3d39c93626fa36492cfc18ecdf145f6149ab"
+  },
+  "nodeGroups": [],
+  "id": "h1fu7Osmvwchw2IR",
+  "tags": []
+}
